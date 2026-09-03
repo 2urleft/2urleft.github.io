@@ -1,0 +1,5 @@
+python-frontmatter
+Jinja2
+pathspec
+watchdog
+markdown

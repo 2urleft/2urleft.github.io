@@ -1,6 +1,2 @@
-# node modules
-node_modules
-
-# eleventy output
-_site
-
+ssg/__pycache__
+venv
