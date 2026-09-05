@@ -1,0 +1,2 @@
+- [ ] directory default metadata cascade (a `def.json` in a parent directory can merge with a `def.json` in the current walked directory)
+- [x] config.toml for certain settings
