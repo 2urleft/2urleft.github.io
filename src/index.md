@@ -8,18 +8,21 @@ date: sept. 6, 2026
 
 \[1\] i'm rather in love with the concept of recreational programming ever since i was a kid. maybe up until
   now it's been slowly suppressed by ai and schoolwork. however, this time i'd really try to conquer such
-  mountain because solving hard problems is fun and i like using my brain.
+  mountain because solving hard problems is fun and i like using my brain,
 
 \[2\] as for the notebook, i'm making it into a blog. before this, i would write in notebooks sequentially
   labelled with a greek letter, the first book is "primer" and the rest is "\[greek\] cont." for continuation.
   you can see some stylistic choice immediately, the container for content is not aligned perfectly in the
-  middle and each paragraph starts with a marker.
+  middle and each paragraph starts with a marker,
+
+\[3\] i like paper lily, rich flavors and rhythm games as well, but i'm getting washed lately (waiting for god
+to pull me back up to peak),
 
 ## current projects
 
 \[3\] currently in the hobby of creating a fictional universe (actually 2 separate ones but i plan to union them
   to make it easier for myself). as i go to school, i will fill up my portfolio and this blog with a bunch of
-  devlogs and projects.
+  devlogs and projects,
 
 \[4\] if you want to reach out, my contacts are:
 
