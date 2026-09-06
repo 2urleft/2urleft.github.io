@@ -91,20 +91,6 @@ hr {
 .post-title { margin-top: 0.25rem; }
 .post-body img { max-width: 100%; height: auto; display: block; border-radius: 2px; }
 
-/* Footnote */
-.post-body h2 {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-}
-.post-body h2 + ol,
-.post-body h2 + p {
-  font-family: var(--sans);
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
 /* Code + tables (fenced_code, codehilite, tables extensions) */
 pre {
   background: var(--bg-code);
@@ -132,6 +118,58 @@ table {
 }
 th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
 th { font-weight: 600; }
+
+/* Archive layout (posts.html) */
+.archive-layout {
+  display: flex;
+  gap: 3rem;
+  align-items: flex-start;
+}
+.archive-layout > .archive.content { flex: 1 1 auto; min-width: 0; }
+
+.archive-tree {
+  flex: 0 0 13rem;
+  position: sticky;
+  top: 2rem;
+}
+.archive-tree .label { margin-bottom: 0.75rem; }
+
+.archive-year {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.3rem 0;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.archive-toggle {
+  display: inline-block;
+  width: 1em;
+  color: var(--text-tertiary);
+}
+.archive-count { color: var(--text-tertiary); font-size: 0.85em; }
+
+.archive-months {
+  list-style: none;
+  margin: 0 0 0.5rem 1.4rem;
+  padding: 0;
+}
+.archive-months li { margin-bottom: 0.3rem; }
+.archive-months a {
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+.archive-months a:hover { color: var(--text); text-decoration: underline; }
+
+@media (max-width: 48rem) {
+  .archive-layout { flex-direction: column; }
+  .archive-tree { position: static; width: 100%; flex-basis: auto; }
+}
 
 /* Footer */
 .site-footer {

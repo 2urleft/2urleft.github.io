@@ -20,27 +20,32 @@
 
   <main class="wrap">
     
-<article class="page archive content">
-  <h1>posts</h1>
-<p class="label">1 post</p>
+<div class="archive-layout">
+  <article class="page archive content">
+    <h1>posts</h1>
+<div id="post-list"></div>
 
-<p>[1] TODO: please create a JS script to automate this, a list item is:</p>
-<hr />
-<p class="meta-date">sept. 6, 2026</p>
-
-<h2 id="post-name"><a href="/posts/introduction.html">post name</a></h2>
-<p>a documentation for relevant information about the blog. feel free to read if you want to, however
-this is not necessary to enjoy the blog.</p>
-<p class="label">5 min read</p>
-
-<hr />
-</article>
+<script type="application/json" id="post-data">
+[
+  {
+    "date": "2026-09-06",
+    "title": "post name",
+    "url": "/posts/introduction.html",
+    "excerpt": "a documentation for the writing convention and other relevant information about the blog. it's not a prerequisite to having a fun time reading the blog, however if you're curious about how i write, it's in here,",
+    "readTime": "8 min read"
+  }
+]
+</script>
+  </article>
+  <aside class="archive-tree" id="archive-tree" aria-label="post archive"></aside>
+</div>
+<script src="/static/js/posts.js" defer></script>
 
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>&copy; 2026 2urleft. all rights reserved.</p>
+      <p>&copy; 2026 2urleft, all rights reserved.</p>
     </div>
   </footer>
 </body>

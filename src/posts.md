@@ -3,19 +3,16 @@ title: posts
 layout: posts.html
 ---
 
-<p class="label">1 post</p>
+<div id="post-list"></div>
 
-[1] TODO: please create a JS script to automate this, a list item is:
-
----
-
-<p class="meta-date">sept. 6, 2026</p>
-
-## [post name](/posts/introduction.html)
-
-a documentation for relevant information about the blog. feel free to read if you want to, however
-this is not necessary to enjoy the blog.
-
-<p class="label">5 min read</p>
-
----
+<script type="application/json" id="post-data">
+[
+  {
+    "date": "2026-09-06",
+    "title": "post name",
+    "url": "/posts/introduction.html",
+    "excerpt": "a documentation for the writing convention and other relevant information about the blog. it's not a prerequisite to having a fun time reading the blog, however if you're curious about how i write, it's in here,",
+    "readTime": "8 min read"
+  }
+]
+</script>
