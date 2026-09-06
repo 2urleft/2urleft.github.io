@@ -20,7 +20,7 @@ def render(txt):
 
 def walk_src(src, dest):
     config_path = os.path.join(src, "config.toml")
-    config = {}
+    config = {"settings": {}}
     if os.path.exists(config_path):
         with open(config_path, "rb") as f:
             config = tomllib.load(f)
