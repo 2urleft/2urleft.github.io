@@ -89,7 +89,14 @@ hr {
 
 /* Post */
 .post-title { margin-top: 0.25rem; }
-.post-body img { max-width: 100%; height: auto; display: block; border-radius: 2px; }
+.content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-inline: auto;
+  border-radius: 2px;
+}
+.content mjx-container { overflow-x: auto; overflow-y: hidden; }
 
 /* Code + tables (fenced_code, codehilite, tables extensions) */
 pre {

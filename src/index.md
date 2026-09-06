@@ -29,3 +29,8 @@ to pull me back up to peak),
 - [huan053660@gmail.com](mailto:huan053660@gmail.com) (rarely used)
 - [discord \[@2urleft\]](https://discord.com/users/1284111521244385290) (frequently used but variable)
 - [discord \[@_fivy\]](https://discord.com/users/917070773619916850) (most frequently used)
+
+other relevant links to me are:
+
+- [my youtube \[@fivy\]](https://www.youtube.com/@xociz-hjU7)
+

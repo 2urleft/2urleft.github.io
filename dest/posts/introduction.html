@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>post name</title>
   <link rel="stylesheet" href="/static/css/style.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -24,7 +33,24 @@
   <p class="meta-date">sept. 6, 2026</p>
   <h1 class="post-title">post name</h1>
   <div class="post-body">
-<p>the post title post name, don't worry about it.</p>
+<p>the post title should be "post name", don't worry about it.</p>
+<hr />
+<h2 id="notable-writing-conventions">notable writing conventions</h2>
+<p>[1] each paragraph is written with a paragraph marker before it. not only is it easier to reference to a previous paragraph but the visual separation of the marker being there (similar to Cambridge's Global English textbooks) helps to read better.</p>
+<p>[2] there are no ui primitives like containers that store text like a special hint or "did you know" or "tip" box. although it's limiting, a blog written like this encourages me to write more readable text when it's sequential like paragraphs and essays.</p>
+<p>[3] each header shouldn't be too short. a header 1 is permitted to have 2 words at least but any smaller header should be written with the main idea clearly. there's no particular reason for this other than i saw it inside a research report on my literature textbook and it's really helpful.</p>
+<h2 id="things-to-consider-implementing">things to consider implementing</h2>
+<p>[4] is it worth it to have diagrams? that would violate my ui primitive idea unless it's an image. but still, talking about having diagrams kind of ruin everything so far. however, it'd be much easier to accept if it looked comparable to this:</p>
+<p><img alt="" src="/assets/layout.png" /></p>
+<p>you can see that there is no in-depth detail and the background is transparent. excalidraw (which is what i used to make the diagram above) is an extremely good tool at doing this. if diagrams are helpful, the answer would be "yes, diagrams are worth it".</p>
+<p>[5] footnotes are essential and i also wanted to add it into <a href="#notable-writing-conventions">notable writing conventions</a> but it's going to be tricky since i don't think we can nor need to automate creating footnotes. instead, what i planned was that you would write a footnote in superscript like this<sup>(1)</sup> enclosed by parentheses.</p>
+<hr />
+<p>(1) and placed whereever the writer wants as long as it is marked with a footnote marker also enclosed in parentheses. it also introduces some harmony and distinction with paragraphs and their markers as well. it's advised to place the footnote at the end with a separator though to be separated by layout clearly.</p>
+<hr />
+<p>[6] the implementation of latex is <s>underway</s> done since it's incredibly essential to a tech blog. here's what it looks like right now:</p>
+<p>$$e^{i \pi} = -1$$</p>
+<p>very original i know, but still a decent demonstration as of the time of writing.</p>
+<p>[7] lastly, i want to be able to express time-gaps without writing "as of writing this in __", it's underway right now and i plan for it to go as a tiny font text saying the date and time aligned to the right (and cutting a dotted separator if possible). this post is in no need for a time-gap so demonstration will be up to any future post.</p>
   </div>
 </article>
 
