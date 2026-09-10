@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>building an svg git graph renderer</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">left's blog</a>
+      <nav class="site-nav">
+        <a href="/">home</a>
+        <a href="/posts.html">posts</a>
+        <a href="/resources.html">resources</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    
+<article class="post content">
+  <p class="meta-date">sept. 7, 2026</p>
+  <h1 class="post-title">building an svg git graph renderer</h1>
+  <div class="post-body">
+<p>i'm doing this project in python because doing it in any other language is overcomplicated.</p>
+<h2 id="turning-the-git-commits-into-a-graph">turning the git commits into a graph</h2>
+<p>[1] if you've taken a computer science class or learnt about dsa before, you may have heard of a graph. it's a data structure behind some of the most intricate algorithms. here, it's convenient not because we're making an algorithm but to use it later to display it. to get the git commits, i run the command:</p>
+<div class="codehilite"><pre><span></span><code>git log --all --topo-order --pretty=format:%H%x09%P%x09%an%x09%at%x09%s
+</code></pre></div>
+
+<p>for the repo right now, it looks like this:</p>
+<div class="codehilite"><pre><span></span><code>...<span class="mi">2</span><span class="nv">bb4b</span><span class="w">        </span><span class="nv">fivy</span><span class="w">    </span><span class="mi">1788708596</span><span class="w">      </span><span class="nv">latex</span>,<span class="w"> </span><span class="nv">introduction</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">image</span><span class="w"> </span><span class="nv">layout</span>
+...<span class="mi">20</span><span class="nv">c8e</span><span class="w">        </span><span class="nv">fivy</span><span class="w">    </span><span class="mi">1788678283</span><span class="w">      </span><span class="nv">dynamicize</span><span class="w"> </span><span class="nv">posts</span>.<span class="nv">html</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">display</span><span class="w"> </span><span class="nv">post</span>.<span class="w"> </span><span class="nv">freedom</span><span class="w"> </span><span class="nv">over</span><span class="w"> </span><span class="nv">visible</span><span class="w"> </span><span class="nv">posts</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="nv">json</span><span class="w"> </span><span class="nv">object</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">post</span><span class="o">&gt;</span>
+...<span class="nv">f77ff</span><span class="w">        </span><span class="nv">fivy</span><span class="w">    </span><span class="mi">1788664814</span><span class="w">      </span><span class="nv">ficks</span>
+...<span class="mi">85</span><span class="nv">e09</span><span class="w">        </span><span class="nv">fivy</span><span class="w">    </span><span class="mi">1788664564</span><span class="w">      </span><span class="mi">404</span><span class="w"> </span><span class="nv">page</span>
+...<span class="mi">7</span><span class="nv">c7dc</span><span class="w">        </span><span class="nv">left</span><span class="w">    </span><span class="mi">1788664496</span><span class="w">      </span><span class="nv">github</span><span class="w"> </span><span class="nv">workflow</span>
+...<span class="nv">f53e8</span><span class="w">        </span><span class="nv">fivy</span><span class="w">    </span><span class="mi">1788664033</span><span class="w">      </span><span class="nv">the</span><span class="w"> </span><span class="nv">base</span><span class="w"> </span><span class="nv">site</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">done</span>
+...<span class="nv">e8dfd</span><span class="w">        </span><span class="nv">fivy</span><span class="w">    </span><span class="mi">1788617613</span><span class="w">      </span><span class="nv">update</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="nv">todo</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">lots</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">minor</span><span class="w"> </span><span class="nv">fixes</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">main</span>.<span class="nv">py</span>
+...<span class="mi">0</span><span class="nv">cfa3</span><span class="w">        </span><span class="nv">fivy</span><span class="w">    </span><span class="mi">1788411423</span><span class="w">      </span><span class="nv">rewrite</span>:<span class="w"> </span><span class="nv">my</span><span class="w"> </span><span class="nv">own</span><span class="w"> </span><span class="nv">ssg</span>
+...
+</code></pre></div>
+
+<p>[2] then i split it to get the its sha, its parent's sha, author, timestamp and message. i originally used <code>--date-order</code> before today but that doesn't help since commits come in different branches at interleaving times, we don't know which branch is which (important for rendering the metro-style git graph) so i switched to <code>--topo-order</code>. imagine as the git graph has a split commit (2 commits have the same parent) and a merge commit (a commit have 2 parents)</p>
+<p><img alt="" src="/assets/topo-order-demo.png" /></p>
+<p class="timegap"><time datetime="2026-09-08">sept. 10, 2026</time></p>
+
+<h2 id="processing-the-graph-into-a-layout">processing the graph into a layout</h2>
+<p>[3] to be able to construct a layout like this, we also need to define what a layout is. we can think of a layout as having rows (sequential commits in rows) and columns (branches/lanes as columns) as well as lane color for branches. </p>
+<p>[4] now, we can move on to processing layouts. basically when you read and process commits there are 2 phases: positioning nodes and connecting edges. first, we have to place nodes correctly (and this is the most important phase). connecting edges just accesses the node's positions via sha and a position lookup dictionary. from there, we also need 2 subphases. for the first subphase, we can assign lanes to each node with another lookup dictionary i'll call <code>branches:dict[str, int]</code> or maybe assign a branch's members to a branch in <code>branch_members:dict[int, list[str]]</code> so the order now doesn't matter as long as they're in the same branch. for the second subphase, we reorder the graph's nodes to be chronological and use a rule to deduce the node's column in layout.</p>
+<p><img alt="" src="/assets/explanationzergraph.png" /></p>
+<h3 id="branch-assignment-positional-processor-subphase-1">branch assignment - positional processor subphase 1</h3>
+<p>[5] the core idea of our positional processor's first subphase to assigning branches is that: branches can be defined and modified relying on "expectations" (unresolved parent-child relationships due to nodes being read in process order/topological order). as long as each node receives a stable <code>branch_id</code> or is a member of a <code>branch</code> such that it doesn't violate the edges.</p>
+<p>[6] to store the expectations, create <code>active:list[tuple[int, str]]</code> which stores a pair <code>(branch_id, expected_sha)</code>. i actually prefer to use <code>branch_members:dict[int, list[str]]</code> for a reason you'll see later.</p>
+<p><img alt="" src="/assets/branch_assignment_zergraph.png" />
+*: the current tie-break condition for 1+ branches is assigning the node the lowest branch id</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">assign_branches</span><span class="p">(</span><span class="n">nodes</span><span class="p">):</span>
+    <span class="n">active</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">branch_members</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">next_id</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+        <span class="n">sha</span> <span class="o">=</span> <span class="n">node</span><span class="p">[</span><span class="s2">"sha"</span><span class="p">]</span>
+        <span class="n">matches</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">active</span> <span class="k">if</span> <span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">sha</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+            <span class="n">branch_id</span> <span class="o">=</span> <span class="n">next_id</span>
+            <span class="n">next_id</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">branch_id</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">)</span>
+            <span class="n">active</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">active</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">]</span>
+
+        <span class="n">branch_members</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">branch_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sha</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">parent_sha</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">node</span><span class="p">[</span><span class="s2">"parents"</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">pid</span> <span class="o">=</span> <span class="n">branch_id</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pid</span> <span class="o">=</span> <span class="n">next_id</span>
+                <span class="n">next_id</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">active</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">pid</span><span class="p">,</span> <span class="n">parent_sha</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">branch_members</span>
+</code></pre></div>
+
+<p>[7] to illustrate this algorithm, we're going to take the second graph from paragraph [4]:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">graph</span><span class="p">():</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edges</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">insert_node</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sha</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">parents</span><span class="p">:</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">sha</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"sha"</span><span class="p">:</span> <span class="n">sha</span><span class="p">,</span> <span class="s2">"parents"</span><span class="p">:</span> <span class="n">parents</span><span class="p">}</span>
+
+<span class="o">...</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">graph</span><span class="p">()</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">insert_node</span><span class="p">(</span><span class="s2">"A"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"B"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">,</span> <span class="s2">"E"</span><span class="p">])</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">insert_node</span><span class="p">(</span><span class="s2">"B"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"F"</span><span class="p">])</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">insert_node</span><span class="p">(</span><span class="s2">"C"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"D"</span><span class="p">])</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">insert_node</span><span class="p">(</span><span class="s2">"D"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"E"</span><span class="p">])</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">insert_node</span><span class="p">(</span><span class="s2">"E"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"H"</span><span class="p">])</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">insert_node</span><span class="p">(</span><span class="s2">"F"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"G"</span><span class="p">])</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">insert_node</span><span class="p">(</span><span class="s2">"G"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"H"</span><span class="p">])</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">insert_node</span><span class="p">(</span><span class="s2">"H"</span><span class="p">,</span> <span class="p">[])</span> <span class="c1"># remember to add it as a valid node or it won't be processed</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">assign_branches</span><span class="p">(</span><span class="n">test</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>(venv) PS C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made\2urleft.github.io\ssg&gt; python ../test.py
+{0: ['A', 'B', 'F', 'G', 'H'], 1: ['C', 'D', 'E']}
+</code></pre></div>
+
+<p>it's also worth adding this:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">if</span> <span class="n">active</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unresolved branch entries — missing root commits? </span><span class="si">{</span><span class="n">active</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+
+<p>for unresolved child nodes if the parent node doesn't exist. last time i didn't add <code>test.insert_node("H", [])</code> so running it with this line will give me:</p>
+<div class="codehilite"><pre><span></span><code><span class="p">(</span><span class="n">venv</span><span class="p">)</span><span class="w"> </span><span class="n">PS</span><span class="w"> </span><span class="nl">C:</span><span class="n">\Users\TRUONG</span><span class="w"> </span><span class="n">NGHIA</span><span class="w"> </span><span class="n">QUAN\Documents\projects-that-i-made\2urleft.github.io\ssg&gt;</span><span class="w"> </span><span class="n">python</span><span class="w"> </span><span class="p">..</span><span class="o">/</span><span class="n">test</span><span class="p">.</span><span class="n">py</span>
+<span class="n">Traceback</span><span class="w"> </span><span class="p">(</span><span class="n">most</span><span class="w"> </span><span class="n">recent</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="n">last</span><span class="p">)</span><span class="o">:</span>
+<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made</span><span class="se">\2</span><span class="s">urleft.github.io</span><span class="se">\t</span><span class="s">est.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mh">50</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="o">&lt;</span><span class="k">module</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="n">print</span><span class="p">(</span><span class="n">assign_branches</span><span class="p">(</span><span class="n">test</span><span class="p">.</span><span class="n">nodes</span><span class="p">.</span><span class="n">values</span><span class="p">()))</span>
+<span class="w">          </span><span class="o">~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^</span>
+<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made</span><span class="se">\2</span><span class="s">urleft.github.io</span><span class="se">\t</span><span class="s">est.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mh">36</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">assign_branches</span>
+<span class="w">    </span><span class="n">raise</span><span class="w"> </span><span class="n">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s">"unresolved branch entries — missing root commits? {active}"</span><span class="p">)</span>
+<span class="nl">ValueError:</span><span class="w"> </span><span class="n">unresolved</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="n">entries</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">missing</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="n">commits</span><span class="o">?</span><span class="w"> </span><span class="p">[(</span><span class="mh">0</span><span class="p">,</span><span class="w"> </span><span class="sc">'B'</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mh">1</span><span class="p">,</span><span class="w"> </span><span class="sc">'C'</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mh">2</span><span class="p">,</span><span class="sc">'E'</span><span class="p">)]</span>
+</code></pre></div>
+
+<h3 id="column-packing-positional-processor-subphase-2">column packing - positional processor subphase 2</h3>
+<p>[8] next, we assign the nodes a position. first, sort the nodes chronologically (<em>from now on, we're going to use <a href="https://github.com/2urleft/zergraph">2urleft/zergraph</a>'s data structures</em>):</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">graph</span><span class="p">():</span>
+    <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sort_chronologically</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">sha</span><span class="p">:</span> <span class="n">commit</span> <span class="k">for</span> <span class="n">sha</span><span class="p">,</span> <span class="n">commit</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"timestamp"</span><span class="p">))}</span>
+</code></pre></div>
+
+<p>and after assigning <code>branches = assign_branches(cgraph.nodes)</code>, run an algorithm for column packing.</p>
+<p>[9] initialize <code>columns:dict[int, int]</code> for <code>branch_id: column</code> and <code>free_columns</code> as a min-heap/list of column indices.</p>
+<p><img alt="" src="/assets/column_packing_zergraph.png" /></p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">assign_columns</span><span class="p">(</span><span class="n">nodes</span><span class="p">,</span> <span class="n">branch_members</span><span class="p">,</span> <span class="n">last_row_of_branch</span><span class="p">):</span>
+    <span class="n">columns</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">free_columns</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">next_column</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">layout_nodes</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">row</span><span class="p">,</span> <span class="p">(</span><span class="n">sha</span><span class="p">,</span> <span class="n">commit</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+        <span class="n">branch_id</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span><span class="p">,</span> <span class="n">members</span> <span class="ow">in</span> <span class="n">branch_members</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">sha</span> <span class="ow">in</span> <span class="n">members</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">branch_id</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">columns</span><span class="p">[</span><span class="n">branch_id</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">free_columns</span><span class="p">:</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">free_columns</span><span class="p">)</span>
+            <span class="n">free_columns</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">next_column</span>
+            <span class="n">next_column</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">columns</span><span class="p">[</span><span class="n">branch_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">col</span>
+
+        <span class="n">layout_nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">layoutnode</span><span class="p">(</span>
+                <span class="n">sha</span><span class="o">=</span><span class="n">sha</span><span class="p">,</span>
+                <span class="n">row</span><span class="o">=</span><span class="n">row</span><span class="p">,</span>
+                <span class="n">col</span><span class="o">=</span><span class="n">col</span><span class="p">,</span>
+                <span class="n">branch_id</span><span class="o">=</span><span class="n">branch_id</span><span class="p">,</span>
+                <span class="n">lane_color</span><span class="o">=</span><span class="n">branch_id</span><span class="p">,</span>
+                <span class="n">commit</span><span class="o">=</span><span class="n">commit</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">row</span> <span class="o">==</span> <span class="n">last_row_of_branch</span><span class="p">[</span><span class="n">branch_id</span><span class="p">]:</span>
+            <span class="n">free_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">columns</span><span class="p">[</span><span class="n">branch_id</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">layout_nodes</span>
+</code></pre></div>
+
+<p>[10] you should notice the <code>last_row_of_branch</code>, for every branch there's a row that is last in chronological order which ends the branch and opens up a free column for new branches. note that this should be computed when the nodes are in chronological order:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">display_lnodes</span><span class="p">(</span><span class="n">nodes</span><span class="p">:</span><span class="nb">list</span><span class="p">[</span><span class="n">layoutnode</span><span class="p">]):</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">sha</span><span class="si">}</span><span class="s2"> at (</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">row</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">col</span><span class="si">}</span><span class="s2">) branch </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">branch_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_layout</span><span class="p">(</span><span class="n">cgraph</span><span class="p">:</span><span class="n">graph</span><span class="p">):</span>
+    <span class="n">branches</span> <span class="o">=</span> <span class="n">assign_branches</span><span class="p">(</span><span class="n">cgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+    <span class="n">cgraph</span><span class="o">.</span><span class="n">sort_chronologically</span><span class="p">()</span>
+    <span class="n">row_by_sha</span> <span class="o">=</span> <span class="p">{</span><span class="n">sha</span><span class="p">:</span> <span class="n">row</span> <span class="k">for</span> <span class="n">row</span><span class="p">,</span> <span class="n">sha</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)}</span>
+    <span class="n">last_row_of_branch</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">branch_id</span><span class="p">:</span> <span class="nb">max</span><span class="p">(</span><span class="n">row_by_sha</span><span class="p">[</span><span class="n">sha</span><span class="p">]</span> <span class="k">for</span> <span class="n">sha</span> <span class="ow">in</span> <span class="n">members</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">branch_id</span><span class="p">,</span> <span class="n">members</span> <span class="ow">in</span> <span class="n">branches</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">}</span>
+    <span class="n">lnodes</span> <span class="o">=</span> <span class="n">assign_columns</span><span class="p">(</span><span class="n">cgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">,</span> <span class="n">branches</span><span class="p">,</span> <span class="n">last_row_of_branch</span><span class="p">)</span>
+    <span class="n">display_lnodes</span><span class="p">(</span><span class="n">lnodes</span><span class="p">)</span>
+</code></pre></div>
+
+<p>here's the result for this repo <a href="https://github.com/2urleft/2urleft.github.io">(2urleft.github.io)</a>:</p>
+<div class="codehilite"><pre><span></span><code>PS C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made\zergraph&gt; python parser.py ../2urleft.github.io
+ba7127944f4650e6807e6eab18647419e470cfa3 at (0, 0) branch 0
+b14a454ee00b4c9f2fd4d8d2922203e41a5e8dfd at (1, 0) branch 0
+ca4f60015759a95d2587890da33e8ba868cf53e8 at (2, 0) branch 0
+1f09f8ab9dcce4b003085041c803b9bbccb7c7dc at (3, 0) branch 0
+4e9689577bd6070d8e95b012a344a55948885e09 at (4, 0) branch 0
+7692697f754e47cbbf982ce60556edf8529f77ff at (5, 0) branch 0
+ccc29a88ccfce94af22a7a537e4a5e74c5520c8e at (6, 0) branch 0
+6ad479e09d2c7107a403d7fbc901f73cc2f2bb4b at (7, 0) branch 0
+a4cf37c1f01812af69be16ff8c3d4e2686d691ab at (8, 0) branch 0
+</code></pre></div>
+
+<p>a linear graph might not stress test it but it's accurate for now.</p>
+<h3 id="edge-connection">edge connection</h3>
+  </div>
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>&copy; 2026 2urleft, all rights reserved.</p>
+    </div>
+  </footer>
+</body>
+</html>
