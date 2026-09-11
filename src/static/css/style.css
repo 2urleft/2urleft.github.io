@@ -109,6 +109,15 @@ hr {
 }
 .content mjx-container { overflow-x: auto; overflow-y: hidden; }
 
+.comments {
+  border-top: 1px solid var(--border);
+  margin-top: 3rem;
+  padding-top: 1rem;
+}
+.comments h2 { margin-top: 0; }
+.comments .giscus,
+.comments .giscus-frame { width: 100%; max-width: 100%; }
+
 /* Code + tables (fenced_code, codehilite, tables extensions) */
 pre {
   background: var(--bg-code);

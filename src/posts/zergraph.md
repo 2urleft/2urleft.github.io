@@ -27,7 +27,7 @@ for the repo right now, it looks like this:
 ...
 ```
 
-\[2\] then i split it to get the its sha, its parent's sha, author, timestamp and message. i originally used `--date-order` before today but that doesn't help since commits come in different branches at interleaving times, we don't know which branch is which (important for rendering the metro-style git graph) so i switched to `--topo-order`. imagine as the git graph has a split commit (2 commits have the same parent) and a merge commit (a commit have 2 parents)
+\[2\] then i split it to get its sha, its parent's sha, author, timestamp and message. i originally used `--date-order` before today but that doesn't help since commits come in different branches at interleaving times, we don't know which branch is which (important for rendering the metro-style git graph) so i switched to `--topo-order`. imagine as the git graph has a split commit (2 commits have the same parent) and a merge commit (a commit have 2 parents)
 
 ![](/assets/topo-order-demo.png)
 
