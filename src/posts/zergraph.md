@@ -107,7 +107,7 @@ if __name__ == "__main__":
 ```
 
 ```
-(venv) PS C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made\2urleft.github.io\ssg> python ../test.py
+(venv) PS C:\Users\█████████████████\Documents\projects-that-i-made\2urleft.github.io\ssg> python ../test.py
 {0: ['A', 'B', 'F', 'G', 'H'], 1: ['C', 'D', 'E']}
 ```
 
@@ -119,12 +119,12 @@ if active:
 for unresolved child nodes if the parent node doesn't exist. last time i didn't add `test.insert_node("H", [])` so running it with this line will give me:
 
 ```
-(venv) PS C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made\2urleft.github.io\ssg> python ../test.py
+(venv) PS C:\Users\█████████████████\Documents\projects-that-i-made\2urleft.github.io\ssg> python ../test.py
 Traceback (most recent call last):
-  File "C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made\2urleft.github.io\test.py", line 50, in <module>
+  File "C:\Users\█████████████████\Documents\projects-that-i-made\2urleft.github.io\test.py", line 50, in <module>
     print(assign_branches(test.nodes.values()))
           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made\2urleft.github.io\test.py", line 36, in assign_branches
+  File "C:\Users\█████████████████\Documents\projects-that-i-made\2urleft.github.io\test.py", line 36, in assign_branches
     raise ValueError(f"unresolved branch entries — missing root commits? {active}")
 ValueError: unresolved branch entries — missing root commits? [(0, 'B'), (1, 'C'), (2,'E')]
 ```
@@ -205,7 +205,7 @@ def build_layout(cgraph:graph):
 here's the result for this repo [(2urleft.github.io)](https://github.com/2urleft/2urleft.github.io):
 
 ```
-PS C:\Users\TRUONG NGHIA QUAN\Documents\projects-that-i-made\zergraph> python parser.py ../2urleft.github.io
+PS C:\Users\█████████████████\Documents\projects-that-i-made\zergraph> python parser.py ../2urleft.github.io
 ba7127944f4650e6807e6eab18647419e470cfa3 at (0, 0) branch 0
 b14a454ee00b4c9f2fd4d8d2922203e41a5e8dfd at (1, 0) branch 0
 ca4f60015759a95d2587890da33e8ba868cf53e8 at (2, 0) branch 0
@@ -221,3 +221,4 @@ a linear graph might not stress test it but it's accurate for now.
 
 ### edge connection
 
+\[11\] finally, update `layout.edges` with `layoutedge`s. each edge just consists of `parent` and `child` shas
