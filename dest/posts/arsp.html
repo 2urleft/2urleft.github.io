@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>building a list programming language</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">left's blog</a>
+      <nav class="site-nav">
+        <a href="/">home</a>
+        <a href="/posts.html">posts</a>
+        <a href="/resources.html">resources</a>
+        <a href="https://2urleft.my.canva.site/lefts-assets">assets</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    
+<article class="post content">
+  <p class="meta-date">sept. 23, 2026</p>
+  <h1 class="post-title">building a list programming language</h1>
+  <div class="post-body">
+<h2 id="crafting-a-lexer">crafting a lexer</h2>
+<p>[1] the first step to programming a programming language is lexer creating a lexer, it's to synthesize a grammar or a test file that doesn't contradict itself. in this project, i named my programming language arsp for (<em>ar</em>ray <em>p</em>rogramming language). for the test file, i went with something a little beyond trivial like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="p">(</span><span class="n">let</span><span class="w"> </span><span class="n">fact</span><span class="p">)</span>
+<span class="p">(</span><span class="n">set</span><span class="w"> </span><span class="n">fact</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">bind</span><span class="w"> </span><span class="n">existing</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">function</span>
+<span class="w">    </span><span class="p">(</span><span class="k">func</span><span class="w"> </span><span class="p">(</span><span class="n">lst</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span>
+<span class="w">        </span><span class="p">(</span><span class="n">ifelse</span><span class="w"> </span><span class="p">(</span><span class="n">lt</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="w">            </span><span class="n">x</span>
+<span class="w">            </span><span class="p">(</span><span class="n">mul</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">(</span><span class="n">fact</span><span class="w"> </span><span class="n">x</span><span class="p">))</span>
+<span class="w">        </span><span class="p">)</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="p">(</span><span class="n">fact</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span>
+<span class="s2">"this is a completely unrelated string"</span>
+</code></pre></div>
+
+<p>it does make use of an edge-case i think will appear later: if a function calls to itself, does it call the identifier that it's set to at the beginning? the answer i landed on is no, if an identifier shows up at the start of an application (list) inside a function definition, do not evaluate it.</p>
+<p>[2] the next step is creating the lexer, we have to recognize some important lexemes that not only contain symbols and delimiters but i think macros are really important (except double-quotes because a string should be considered as one token inside the lexer rather than a chain of potential function names and identifiers enclosed by quote tokens to get parsed inside a parser)</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">auto</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TokenType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="c1"># essence</span>
+    <span class="n">LPAREN</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">RPAREN</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">IDENT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+    <span class="c1"># types</span>
+    <span class="n">T_STRING</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">T_NUMBER</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">T_BOOL</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">T_LST</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">T_NIL</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+    <span class="c1"># keywords</span>
+    <span class="n">KW_FUNC</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">KW_IF</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">KW_IFELSE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">KW_LET</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+    <span class="c1"># operator</span>
+    <span class="n">OP_SET</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_INCR</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_DECR</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+    <span class="n">OP_PLUS</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_MINUS</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_MUL</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_DIV</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+    <span class="n">OP_LT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_GT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_LE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_GE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+    <span class="n">OP_OR</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_AND</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">OP_NOT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+    <span class="c1"># not a token</span>
+    <span class="n">NAT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Token</span><span class="p">():</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ttype</span><span class="p">:</span><span class="n">TokenType</span><span class="p">,</span> <span class="n">lexeme</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">""</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ttype</span> <span class="o">=</span> <span class="n">ttype</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lexeme</span> <span class="o">=</span> <span class="n">lexeme</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">tokens</span><span class="w"> </span><span class="kn">import</span> <span class="n">Token</span><span class="p">,</span> <span class="n">TokenType</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+<span class="n">KWOP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"func"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">KW_FUNC</span><span class="p">,</span>
+    <span class="s2">"if"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">KW_IF</span><span class="p">,</span>
+    <span class="s2">"ifelse"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">KW_IFELSE</span><span class="p">,</span>
+    <span class="s2">"let"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">KW_LET</span><span class="p">,</span>
+
+    <span class="s2">"set"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_SET</span><span class="p">,</span>
+    <span class="s2">"incr"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_INCR</span><span class="p">,</span>
+    <span class="s2">"decr"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_DECR</span><span class="p">,</span>
+
+    <span class="s2">"pls"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_PLUS</span><span class="p">,</span>
+    <span class="s2">"mns"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_MINUS</span><span class="p">,</span>
+    <span class="s2">"mul"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_MUL</span><span class="p">,</span>
+    <span class="s2">"div"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_DIV</span><span class="p">,</span>
+
+    <span class="s2">"lt"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_LT</span><span class="p">,</span>
+    <span class="s2">"gt"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_GT</span><span class="p">,</span>
+    <span class="s2">"le"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_LE</span><span class="p">,</span>
+    <span class="s2">"ge"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_GE</span><span class="p">,</span>
+
+    <span class="s2">"or"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_OR</span><span class="p">,</span>
+    <span class="s2">"and"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_AND</span><span class="p">,</span>
+    <span class="s2">"not"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">OP_NOT</span><span class="p">,</span>
+
+    <span class="s2">"true"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">T_BOOL</span><span class="p">,</span>
+    <span class="s2">"false"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">T_BOOL</span><span class="p">,</span> <span class="c1"># literals</span>
+    <span class="s2">"lst"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">T_LST</span><span class="p">,</span> <span class="c1"># macro denoting atom</span>
+    <span class="s2">"nil"</span><span class="p">:</span> <span class="n">TokenType</span><span class="o">.</span><span class="n">T_NIL</span> <span class="c1"># literal</span>
+<span class="p">}</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Lexer</span><span class="p">():</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">source</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tokens</span><span class="p">:</span><span class="nb">list</span><span class="p">[</span><span class="n">Token</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_add_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ttype</span><span class="p">,</span> <span class="n">lexeme</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tokens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Token</span><span class="p">(</span>
+            <span class="n">ttype</span><span class="p">,</span> <span class="n">lexeme</span>
+        <span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_lexemes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lexemes</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">lexeme</span> <span class="ow">in</span> <span class="n">lexemes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">lexeme</span> <span class="o">==</span> <span class="s2">"("</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_token</span><span class="p">(</span><span class="n">TokenType</span><span class="o">.</span><span class="n">LPAREN</span><span class="p">,</span> <span class="n">lexeme</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">lexeme</span> <span class="o">==</span> <span class="s2">")"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_token</span><span class="p">(</span><span class="n">TokenType</span><span class="o">.</span><span class="n">RPAREN</span><span class="p">,</span> <span class="n">lexeme</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="n">KWOPtype</span> <span class="o">:=</span> <span class="n">KWOP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">lexeme</span><span class="p">,</span> <span class="kc">None</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_add_token</span><span class="p">(</span><span class="n">KWOPtype</span><span class="p">,</span> <span class="n">lexeme</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">lexeme</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">';'</span><span class="p">:</span> <span class="k">continue</span>
+            <span class="k">elif</span> <span class="n">lexeme</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'"'</span> <span class="ow">and</span> <span class="n">lexeme</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'"'</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_add_token</span><span class="p">(</span><span class="n">TokenType</span><span class="o">.</span><span class="n">T_STRING</span><span class="p">,</span> <span class="n">lexeme</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">lexeme</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_add_token</span><span class="p">(</span><span class="n">TokenType</span><span class="o">.</span><span class="n">T_NUMBER</span><span class="p">,</span> <span class="n">lexeme</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_add_token</span><span class="p">(</span><span class="n">TokenType</span><span class="o">.</span><span class="n">IDENT</span><span class="p">,</span> <span class="n">lexeme</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">lex</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">'''</span>
+<span class="s1">        (</span>
+<span class="s1">            "(?:\\.|[^"\\])*"            # Strings</span>
+<span class="s1">          | ;[^\n]*                      # Comments</span>
+<span class="s1">          | [-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?  # Numbers</span>
+<span class="s1">          | [()]                         # Parentheses</span>
+<span class="s1">          | [^\s()"';]+                  # Symbols</span>
+<span class="s1">        )</span>
+<span class="s1">        '''</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">VERBOSE</span><span class="p">)</span>
+        <span class="n">lexemes</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_lexemes</span><span class="p">(</span><span class="n">lexemes</span><span class="p">)</span>
+</code></pre></div>
+
+<p>[3] the decisions i made here are important:
+- parentheses delimiters are considered tokens because there are no tokens for function names and multiple tokens for macros. instead, functions should be recognized in the parser and function names are identifier tokens
+- strings being delimited by quotes which are not tokens for reasons i already discussed
+- lists that are shouldn't applications but actual lists are actually conveniently made by having it created as an application of "list constructor" with its operands as items. for example: <code>(lst 1 2 3 4 5)</code></p>
+<p>by the way shoutout to some random article for giving me the regex for splitting tokens in source for the lexer. this includes numeric atoms with sign (but <code>+</code> sign might be questionable), actual parentheses tokens with regarding quotes as part of string tokens (that i've talked before) and comments (i never knew lisp had comments prior to this by the way)</p>
+<p>[4] with <code>simple.arsp</code> (the name of the demo program), the lexer should spit out this with <code>main.py</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">tokens</span><span class="w"> </span><span class="kn">import</span> <span class="n">Token</span><span class="p">,</span> <span class="n">TokenType</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lexer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Lexer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">parser</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parser</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"simple.arsp"</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">lexer</span> <span class="o">=</span> <span class="n">Lexer</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="n">lexer</span><span class="o">.</span><span class="n">lex</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">lexer</span><span class="o">.</span><span class="n">tokens</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">ttype</span><span class="p">,</span> <span class="n">token</span><span class="o">.</span><span class="n">lexeme</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PS C:\Users\█████████████████\Documents\projects-that-i-made\arsp&gt; python main.py
+TokenType.LPAREN (
+TokenType.KW_LET let
+TokenType.IDENT fact
+TokenType.RPAREN )
+TokenType.LPAREN (
+TokenType.OP_SET set
+TokenType.IDENT fact
+TokenType.LPAREN (
+TokenType.KW_FUNC func
+TokenType.LPAREN (
+TokenType.T_LST lst
+TokenType.IDENT x
+TokenType.RPAREN )
+TokenType.LPAREN (
+TokenType.KW_IFELSE ifelse
+TokenType.LPAREN (
+TokenType.OP_LT lt
+TokenType.IDENT x
+TokenType.T_NUMBER 1
+TokenType.RPAREN )
+TokenType.IDENT x
+TokenType.LPAREN (
+TokenType.OP_MUL mul
+TokenType.IDENT x
+TokenType.LPAREN (
+TokenType.IDENT fact
+TokenType.IDENT x
+TokenType.RPAREN )
+TokenType.RPAREN )
+TokenType.RPAREN )
+TokenType.RPAREN )
+TokenType.RPAREN )
+TokenType.LPAREN (
+TokenType.IDENT fact
+TokenType.T_NUMBER 5
+TokenType.RPAREN )
+TokenType.T_STRING "this is a completely unrelated string"
+</code></pre></div>
+  </div>
+</article>
+<section class="comments content" aria-labelledby="comments-title">
+  <h2 id="comments-title">comments</h2>
+  <div class="giscus"></div>
+  <script src="https://giscus.app/client.js"
+          data-repo="2urleft/2urleft.github.io"
+          data-repo-id="R_kgDOUK04yA"
+          data-category="General"
+          data-category-id="[ENABLE DISCUSSIONS AND COPY CATEGORY ID]"
+          data-mapping="pathname"
+          data-strict="0"
+          data-reactions-enabled="1"
+          data-emit-metadata="0"
+          data-input-position="bottom"
+          data-theme="light"
+          data-lang="en"
+          crossorigin="anonymous"
+          async></script>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>&copy; 2026 2urleft, all rights reserved.</p>
+    </div>
+  </footer>
+</body>
+</html>
