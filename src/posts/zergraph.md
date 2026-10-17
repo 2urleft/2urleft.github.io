@@ -222,3 +222,5 @@ a linear graph might not stress test it but it's accurate for now.
 ### edge connection
 
 \[11\] finally, update `layout.edges` with `layoutedge`s. each edge just consists of `parent` and `child` shas
+
+## TBC (please wait, this post is unfinished)

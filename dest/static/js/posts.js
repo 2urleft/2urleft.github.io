@@ -60,14 +60,9 @@
       var excerpt = document.createElement("p");
       excerpt.textContent = post.excerpt;
 
-      var readTime = document.createElement("p");
-      readTime.className = "label";
-      readTime.textContent = post.readTime;
-
       entry.appendChild(dateEl);
       entry.appendChild(heading);
       entry.appendChild(excerpt);
-      entry.appendChild(readTime);
       list.appendChild(entry);
 
       if (index < posts.length - 1) {
