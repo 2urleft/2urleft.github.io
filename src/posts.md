@@ -30,7 +30,7 @@ layout: posts.html
     "title": "building a list programming language",
     "url": "/posts/arsp.html",
     "excerpt": "building something like lisp to learn about compilers and how programming languages work. hopefully one day, this programming language will be usable enough that i'll start using it to replace other languages and continue maintaining it. that's because this lisp is systems-level,"
-  }
+  },
   {
     "date": "2026-10-13",
     "title": "building an authoring interface for this blog",
