@@ -1,226 +1,182 @@
 ---
-title: building an svg git graph renderer
+title: building a simple git commit graph renderer
 date: sept. 7, 2026
 ---
 
-i'm doing this project in python because doing it in any other language is overcomplicated.
+## where to start with a git commit?
 
-## turning the git commits into a graph
+\[1\] a git history is already a graph, since every commit points to one or more parent commits. the first parent usually continues the main line of development, and extra parents show where branches have been merged. to draw this history, we need to give every commit a position and then draw a line between each commit and its parents.
 
-\[1\] if you've taken a computer science class or learnt about dsa before, you may have heard of a graph. it's a data structure behind some of the most intricate algorithms. here, it's convenient not because we're making an algorithm but to use it later to display it. to get the git commits, i run the command:
+\[2\] i split zergraph into two small programs so each one can focus on one part of the job. `parser.py` reads the history and gives each commit a row and column, then writes that layout as json. `renderer.py` reads the layout and turns it into an svg, which means i can work on how the graph looks without changing how git commits are read.
 
-```
-git log --all --topo-order --pretty=format:%H%x09%P%x09%an%x09%at%x09%s
-```
+## parsing the git history
 
-for the repo right now, it looks like this:
+\[3\] the easiest way to get the commit data is to ask git for every commit reachable from its references, in topological order:
 
-```
-...2bb4b        fivy    1788708596      latex, introduction post and image layout
-...20c8e        fivy    1788678283      dynamicize posts.html to display post. freedom over visible posts with json object in post>
-...f77ff        fivy    1788664814      ficks
-...85e09        fivy    1788664564      404 page
-...7c7dc        left    1788664496      github workflow
-...f53e8        fivy    1788664033      the base site is done
-...e8dfd        fivy    1788617613      update with todo and lots of minor fixes for main.py
-...0cfa3        fivy    1788411423      rewrite: my own ssg
-...
+```bash
+git log --all --topo-order --pretty=format:%H%x00%P%x00%an%x00%at%x00%s%x00
 ```
 
-\[2\] then i split it to get its sha, its parent's sha, author, timestamp and message. i originally used `--date-order` before today but that doesn't help since commits come in different branches at interleaving times, we don't know which branch is which (important for rendering the metro-style git graph) so i switched to `--topo-order`. imagine as the git graph has a split commit (2 commits have the same parent) and a merge commit (a commit have 2 parents)
-
-![](/assets/topo-order-demo.png)
-
-<p class="timegap"><time datetime="2026-09-08">sept. 10, 2026</time></p>
-
-## processing the graph into a layout
-
-\[3\] to be able to construct a layout like this, we also need to define what a layout is. we can think of a layout as having rows (sequential commits in rows) and columns (branches/lanes as columns) as well as lane color for branches. 
-
-\[4\] now, we can move on to processing layouts. basically when you read and process commits there are 2 phases: positioning nodes and connecting edges. first, we have to place nodes correctly (and this is the most important phase). connecting edges just accesses the node's positions via sha and a position lookup dictionary. from there, we also need 2 subphases. for the first subphase, we can assign lanes to each node with another lookup dictionary i'll call `branches:dict[str, int]` or maybe assign a branch's members to a branch in `branch_members:dict[int, list[str]]` so the order now doesn't matter as long as they're in the same branch. for the second subphase, we reorder the graph's nodes to be chronological and use a rule to deduce the node's column in layout.
-
-![](/assets/explanationzergraph.png)
-
-### branch assignment - positional processor subphase 1
-
-\[5\] the core idea of our positional processor's first subphase to assigning branches is that: branches can be defined and modified relying on "expectations" (unresolved parent-child relationships due to nodes being read in process order/topological order). as long as each node receives a stable `branch_id` or is a member of a `branch` such that it doesn't violate the edges.
-
-\[6\] to store the expectations, create `active:list[tuple[int, str]]` which stores a pair `(branch_id, expected_sha)`. i actually prefer to use `branch_members:dict[int, list[str]]` for a reason you'll see later.
-
-![](/assets/branch_assignment_zergraph.png)
-*: the current tie-break condition for 1+ branches is assigning the node the lowest branch id
+\[4\] each record has five fields separated by nul characters: the commit sha, its parent shas, the author's name, the author timestamp, and the subject. nul is handy here because spaces and tabs can appear in names or messages without confusing the parser. when there are several parents, their shas are separated by spaces.
 
 ```python
-def assign_branches(nodes):
-    active = []
-    branch_members = {}
-    next_id = 0
+fields = result.stdout.split("\0")
+while fields and not fields[-1].strip():
+    fields.pop()
 
-    for node in nodes:
-        sha = node["sha"]
-        matches = [e for e in active if e[1] == sha]
+commits = []
 
-        if not matches:
-            branch_id = next_id
-            next_id += 1
-        else:
-            branch_id = min(e[0] for e in matches)
-            active = [e for e in active if e not in matches]
-
-        branch_members.setdefault(branch_id, []).append(sha)
-
-        for i, parent_sha in enumerate(node["parents"]):
-            if i == 0:
-                pid = branch_id
-            else:
-                pid = next_id
-                next_id += 1
-            active.append((pid, parent_sha))
-
-    return branch_members
+for index in range(0, len(fields), 5):
+    sha, parents_text, author, timestamp_text, subject = fields[index:index + 5]
+    commits.append(commit(
+        sha=sha,
+        parents=tuple(parents_text.split()) if parents_text.strip() else (),
+        author=author,
+        timestamp=int(timestamp_text),
+        subject=subject,
+    ))
 ```
 
-\[7\] to illustrate this algorithm, we're going to take the second graph from paragraph \[4\]:
-```python
-class graph():
-    def __init__(self):
-        self.nodes = {}
-        self.edges = []
-
-    def insert_node(self, sha:str, parents:list[str]):
-        self.nodes[sha] = {"sha": sha, "parents": parents}
-
-...
-
-if __name__ == "__main__":
-    test = graph()
-    test.insert_node("A", ["B", "C", "E"])
-    test.insert_node("B", ["F"])
-    test.insert_node("C", ["D"])
-    test.insert_node("D", ["E"])
-    test.insert_node("E", ["H"])
-    test.insert_node("F", ["G"])
-    test.insert_node("G", ["H"])
-    test.insert_node("H", []) # remember to add it as a valid node or it won't be processed
-
-    print(assign_branches(test.nodes.values()))
-```
-
-```
-(venv) PS C:\Users\█████████████████\Documents\projects-that-i-made\2urleft.github.io\ssg> python ../test.py
-{0: ['A', 'B', 'F', 'G', 'H'], 1: ['C', 'D', 'E']}
-```
-
-it's also worth adding this:
-```py
-if active:
-    raise ValueError(f"unresolved branch entries — missing root commits? {active}")
-```
-for unresolved child nodes if the parent node doesn't exist. last time i didn't add `test.insert_node("H", [])` so running it with this line will give me:
-
-```
-(venv) PS C:\Users\█████████████████\Documents\projects-that-i-made\2urleft.github.io\ssg> python ../test.py
-Traceback (most recent call last):
-  File "C:\Users\█████████████████\Documents\projects-that-i-made\2urleft.github.io\test.py", line 50, in <module>
-    print(assign_branches(test.nodes.values()))
-          ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\█████████████████\Documents\projects-that-i-made\2urleft.github.io\test.py", line 36, in assign_branches
-    raise ValueError(f"unresolved branch entries — missing root commits? {active}")
-ValueError: unresolved branch entries — missing root commits? [(0, 'B'), (1, 'C'), (2,'E')]
-```
-
-### column packing - positional processor subphase 2
-
-\[8\] next, we assign the nodes a position. first, sort the nodes chronologically (*from now on, we're going to use [2urleft/zergraph](https://github.com/2urleft/zergraph)'s data structures*):
-```python
-class graph():
-    ...
-
-    def sort_chronologically(self):
-        self.nodes = {sha: commit for sha, commit in sorted(self.nodes.items(), key=lambda x: x[1].get("timestamp"))}
-```
-and after assigning `branches = assign_branches(cgraph.nodes)`, run an algorithm for column packing.
-
-\[9\] initialize `columns:dict[int, int]` for `branch_id: column` and `free_columns` as a min-heap/list of column indices.
-
-![](/assets/column_packing_zergraph.png)
+\[5\] each record becomes a `commit` with those five values. then `commit_graph` keeps the commits indexed by sha and adds an edge from each loaded parent to its child. i only add edges when both commits are present, so a partial history can still be drawn even if an older parent is missing.
 
 ```python
-def assign_columns(nodes, branch_members, last_row_of_branch):
-    columns = {}
-    free_columns = []
-    next_column = 0
-    layout_nodes = []
-
-    for row, (sha, commit) in enumerate(nodes.items()):
-        branch_id = next(b for b, members in branch_members.items() if sha in members)
-
-        if branch_id in columns:
-            col = columns[branch_id]
-        elif free_columns:
-            col = min(free_columns)
-            free_columns.remove(col)
-        else:
-            col = next_column
-            next_column += 1
-        columns[branch_id] = col
-
-        layout_nodes.append(
-            layoutnode(
-                sha=sha,
-                row=row,
-                col=col,
-                branch_id=branch_id,
-                lane_color=branch_id,
-                commit=commit,
-            )
-        )
-
-        if row == last_row_of_branch[branch_id]:
-            free_columns.append(col)
-            del columns[branch_id]
-
-    return layout_nodes
+for child_sha, item in graph.nodes.items():
+    for parent_sha in item.parents:
+        if parent_sha in graph.nodes:
+            graph.edges.append(edge(parent=parent_sha, child=child_sha))
 ```
 
-\[10\] you should notice the `last_row_of_branch`, for every branch there's a row that is last in chronological order which ends the branch and opens up a free column for new branches. note that this should be computed when the nodes are in chronological order:
+\[6\] git's `--topo-order` gives us a useful order for laying out the history, so i keep that order instead of sorting by timestamps. timestamps can be skewed, and they don't guarantee that a commit will appear before its parent. keeping the supplied order makes the row assignment predictable.
+
+## placing commits into lanes
+
+\[7\] the layout gives each commit a row and a column. rows follow the order from git, while columns show the lanes that commits travel along. i keep a list called `lanes`; each entry is a commit sha that the lane is waiting to see next. if the current commit is already in that list, its index gives us its column. otherwise, i start a new lane at the end.
+
+\[8\] after placing a commit, i remove its sha from the lane list and schedule its loaded parents. the first parent takes over the same lane, while any additional parent is placed in a nearby lane unless another active lane already expects it. that way, a first-parent history can continue in a straight column, and merge commits can bring other lanes into it.
+
+\[9\] the main loop in `build_layout` is small enough to show on its own. the actual function also handles an empty history and removes duplicate parent shas before scheduling them:
 
 ```python
-def display_lnodes(nodes:list[layoutnode]):
-    for node in nodes:
-        print(f"{node.sha} at ({node.row}, {node.col}) branch {node.branch_id}")
+lanes = []
+positions = {}
 
-def build_layout(cgraph:graph):
-    branches = assign_branches(cgraph.nodes)
-    cgraph.sort_chronologically()
-    row_by_sha = {sha: row for row, sha in enumerate(cgraph.nodes)}
-    last_row_of_branch = {
-        branch_id: max(row_by_sha[sha] for sha in members)
-        for branch_id, members in branches.items()
+for row, commit in enumerate(commits):
+    if commit.sha in lanes:
+        col = lanes.index(commit.sha)
+    else:
+        col = len(lanes)
+        lanes.append(commit.sha)
+
+    positions[commit.sha] = (col, row)
+    lanes.pop(col)
+
+    loaded_parents = [p for p in commit.parents if p in graph.nodes]
+    if loaded_parents:
+        lanes.insert(col, loaded_parents[0])
+        for offset, parent in enumerate(loaded_parents[1:], start=1):
+            if parent not in lanes:
+                lanes.insert(min(col + offset, len(lanes)), parent)
+```
+
+\[10\] once every commit has a position, i can build a `layout_edge` for each parent-child relationship. the edge records both shas and their coordinates, and it is marked as straight when the commits share a column or as a branch when they don't. the finished `layout` keeps all the nodes and edges together, along with the row and column counts.
+
+```json
+{
+  "nodes": [
+    {
+      "sha": "child",
+      "row": 0,
+      "col": 0,
+      "commit": {
+        "sha": "child",
+        "parents": ["parent"],
+        "author": "alex",
+        "timestamp": 100,
+        "subject": "make a change"
+      }
+    },
+    {
+      "sha": "parent",
+      "row": 1,
+      "col": 0,
+      "commit": {
+        "sha": "parent",
+        "parents": [],
+        "author": "alex",
+        "timestamp": 90,
+        "subject": "start the project"
+      }
     }
-    lnodes = assign_columns(cgraph.nodes, branches, last_row_of_branch)
-    display_lnodes(lnodes)
+  ],
+  "edges": [
+    {
+      "parent_sha": "parent",
+      "child_sha": "child",
+      "start": [0, 1],
+      "end": [0, 0],
+      "kind": "straight"
+    }
+  ]
+}
 ```
 
-here's the result for this repo [(2urleft.github.io)](https://github.com/2urleft/2urleft.github.io):
+## handing the layout to the renderer
 
-```
-PS C:\Users\█████████████████\Documents\projects-that-i-made\zergraph> python parser.py ../2urleft.github.io
-ba7127944f4650e6807e6eab18647419e470cfa3 at (0, 0) branch 0
-b14a454ee00b4c9f2fd4d8d2922203e41a5e8dfd at (1, 0) branch 0
-ca4f60015759a95d2587890da33e8ba868cf53e8 at (2, 0) branch 0
-1f09f8ab9dcce4b003085041c803b9bbccb7c7dc at (3, 0) branch 0
-4e9689577bd6070d8e95b012a344a55948885e09 at (4, 0) branch 0
-7692697f754e47cbbf982ce60556edf8529f77ff at (5, 0) branch 0
-ccc29a88ccfce94af22a7a537e4a5e74c5520c8e at (6, 0) branch 0
-6ad479e09d2c7107a403d7fbc901f73cc2f2bb4b at (7, 0) branch 0
-a4cf37c1f01812af69be16ff8c3d4e2686d691ab at (8, 0) branch 0
+\[11\] saving the layout as json gives `renderer.py` a simple format to read. nodes keep their sha, row, column, and commit details; edges keep the endpoint shas, coordinates, and type. i can also load this json later without asking git to rebuild the layout.
+
+\[12\] `parser.py` can read from a repository path or from a commit fixture passed with `--input-json`. fixtures are useful when i want to try the same graph more than once, since they keep the commits and their order fixed. `tests/fixtures/all-in-one.json` is one example with a feature branch, a hotfix, and a couple of merges.
+
+```powershell
+python parser.py ..\some-repo --pretty
+python parser.py --input-json tests\fixtures\all-in-one.json --pretty
 ```
 
-a linear graph might not stress test it but it's accurate for now.
+## drawing the commit graph
 
-### edge connection
+\[13\] before drawing anything, the renderer assigns colors to the edges. it walks commits in row order and follows first parents, giving each unclaimed history its own line. an edge to the first parent uses the child's line, while an extra merge-parent edge uses the parent's line, so the merged branch keeps its color as it joins the graph.
 
-\[11\] finally, update `layout.edges` with `layoutedge`s. each edge just consists of `parent` and `child` shas
+```python
+line_of = {}
+next_line = 0
 
-## TBC (please wait, this post is unfinished)
+for sha in sorted(nodes, key=lambda sha: nodes[sha].row):
+    if sha in line_of:
+        continue
+
+    current = sha
+    while current is not None and current not in line_of:
+        line_of[current] = next_line
+        current = first_parent(nodes[current], nodes)
+
+    next_line += 1
+```
+
+\[14\] edges in the same column can usually be drawn straight down, unless another station is in the way. when an edge changes columns, the renderer tries to route it through the gutter between lanes: it leaves the station diagonally, travels vertically in the gutter, then turns diagonally into the other station. the diagonals use 45-degree angles when there is enough room. if they don't fit, the renderer tries a larger row gap and otherwise uses a direct connection. overlapping routes share the gutter by using different slots.
+
+```python
+def build_path(start, end, gutter_x):
+    (x1, y1), (x2, y2) = start, end
+    direction = 1 if y2 > y1 else -1
+    first_diagonal = abs(gutter_x - x1)
+    second_diagonal = abs(x2 - gutter_x)
+
+    if abs(y2 - y1) < first_diagonal + second_diagonal:
+        return None
+
+    return [
+        start,
+        (gutter_x, y1 + direction * first_diagonal),
+        (gutter_x, y2 - direction * second_diagonal),
+        end,
+    ]
+```
+
+\[15\] i draw the edges first and the stations on top, so the lines don't cover the commit shapes. regular commits are circles, merge commits are diamonds, and commits without parents are squares. each line gets a small extension and a t-bar at its ends, while optional labels show the subject, author, date, and sha. text is escaped before being added to the svg.
+
+\[16\] colors and spacing live in `theme` and `render_style`, away from the graph layout. from the command line, i can pick a light or dark theme, change colors, hide labels or guides, add a legend, and adjust alignment or canvas width. the renderer can take a saved layout, a fixture, or a repository directly:
+
+```bash
+python renderer.py layout.json -o graph.svg
+python renderer.py tests\fixtures\all-in-one.json -o graph.svg --dark --legend
+python renderer.py ..\some-repo -o graph.svg --align center --width 1000
+```
